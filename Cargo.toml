@@ -1,0 +1,16 @@
+[package]
+name = "verynicetable"
+version = "0.1.0"
+edition = "2021"
+authors = ["Quentin Richert <noreply@richert.co>"]
+description = "Number one table."
+license = "MIT"
+repository = "https://github.com/qrichert/verynicetable.git"
+readme = "README.md"
+keywords = ["tui", "table", "terminal", "console"]
+categories = ["command-line-interface", "rendering::engine"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
+
+[dependencies]
