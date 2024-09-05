@@ -19,6 +19,7 @@ fn main() {
     let ports = vec![
         vec!["rapportd", "449", "Quentin", "*:61165"],
         vec!["Python", "22396", "Quentin", "*:8000"],
+        vec!["foo", "108", "root", "*:1337"],
         vec!["rustrover", "30928", "Quentin", "127.0.0.1:63342"],
         vec!["Transmiss", "94671", "Quentin", "*:51413"],
         vec!["Transmiss", "94671", "Quentin", "*:51413"],
@@ -28,6 +29,7 @@ fn main() {
         .headers(&["COMMAND", "PID", "USER", "HOST:PORTS"])
         .alignments(&[Left, Right, Left, Right])
         .data(&ports)
+        .max_rows(5)
         .to_string();
 
     print!("{table}");
@@ -38,33 +40,10 @@ fn main() {
 COMMAND      PID  USER          HOST:PORTS
 rapportd     449  Quentin          *:61165
 Python     22396  Quentin           *:8000
+...          ...  ...                  ...
 rustrover  30928  Quentin  127.0.0.1:63342
 Transmiss  94671  Quentin          *:51413
 Transmiss  94671  Quentin          *:51413
 ```
 
 That's about it.
-
-## Roadmap
-
-Not much, but will likely add some sort of "max rows" setting, and allow
-omitting headers which is not yet possible.
-
-Max rows would look like this:
-
-```rust
-let table = Table::new()
-    .max_rows(3)
-    .headers(&["COMMAND", "PID", "USER", "HOST:PORTS"])
-    .alignments(&[Left, Right, Left, Right])
-    .data(&ports)
-    .to_string();
-```
-
-```
-COMMAND      PID  USER          HOST:PORTS
-rapportd     449  Quentin          *:61165
-...          ...  ...                  ...
-Transmiss  94671  Quentin          *:51413
-Transmiss  94671  Quentin          *:51413
-```

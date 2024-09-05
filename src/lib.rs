@@ -12,6 +12,7 @@
 //! let ports = vec![
 //!     vec!["rapportd", "449", "Quentin", "*:61165"],
 //!     vec!["Python", "22396", "Quentin", "*:8000"],
+//!     vec!["foo", "108", "root", "*:1337"],
 //!     vec!["rustrover", "30928", "Quentin", "127.0.0.1:63342"],
 //!     vec!["Transmiss", "94671", "Quentin", "*:51413"],
 //!     vec!["Transmiss", "94671", "Quentin", "*:51413"],
@@ -21,6 +22,7 @@
 //!     .headers(&["COMMAND", "PID", "USER", "HOST:PORTS"])
 //!     .alignments(&[Left, Right, Left, Right])
 //!     .data(&ports)
+//!     .max_rows(5)
 //!     .to_string();
 //!
 //! assert_eq!(
@@ -29,6 +31,7 @@
 //! COMMAND      PID  USER          HOST:PORTS
 //! rapportd     449  Quentin          *:61165
 //! Python     22396  Quentin           *:8000
+//! ...          ...  ...                  ...
 //! rustrover  30928  Quentin  127.0.0.1:63342
 //! Transmiss  94671  Quentin          *:51413
 //! Transmiss  94671  Quentin          *:51413
@@ -61,7 +64,7 @@ struct TableBlueprint<'a> {
 ///
 /// The methods of interest are [`new()`](Self::new),
 /// [`headers()`](Self::headers), [`alignments()`](Self::alignments),
-/// and [`data()`](Self::data).
+/// [`data()`](Self::data) and [`max_rows()`](Self::max_rows).
 ///
 /// This can possibly hold intermediary "invalid" state. Which is
 /// perfectly normal for a builder.
@@ -79,6 +82,7 @@ pub struct Table<'a> {
     headers: Option<Vec<&'a str>>,
     alignments: Option<&'a [fmt::Alignment]>,
     data: Option<Vec<Vec<&'a str>>>,
+    max_rows: Option<usize>,
 }
 
 impl<'a> Default for Table<'a> {
@@ -94,6 +98,7 @@ impl<'a> Table<'a> {
             headers: None,
             alignments: None,
             data: None,
+            max_rows: None,
         }
     }
 
@@ -114,6 +119,11 @@ impl<'a> Table<'a> {
             .map(|row| row.iter().map(AsRef::as_ref).collect())
             .collect();
         self.data = Some(data);
+        self
+    }
+
+    pub fn max_rows(&mut self, max_rows: usize) -> &mut Self {
+        self.max_rows = Some(max_rows);
         self
     }
 
@@ -164,16 +174,23 @@ impl<'a> Table<'a> {
 
         let headers = self.get_headers_or_default(nb_cols);
         let alignments = self.get_alignments_or_default(nb_cols);
-        let data = self.data.as_ref().expect("data is required");
+        let mut data = self.data.as_ref().expect("data is required").to_owned();
 
-        Self::ensure_data_consistency(&headers, &alignments, data);
+        Self::ensure_data_consistency(&headers, &alignments, &data);
 
-        let columns_width = Self::determine_columns_width(&headers, data);
+        if let Some(max_rows) = self.max_rows {
+            #[cfg(not(tarpaulin_include))] // Wrongly marked uncovered.
+            {
+                data = Self::apply_max_rows(data, max_rows, nb_cols);
+            }
+        }
+
+        let columns_width = Self::determine_columns_width(&headers, &data);
 
         TableBlueprint {
             headers,
             alignments,
-            data: data.to_owned(),
+            data,
             columns_width,
         }
     }
@@ -228,6 +245,37 @@ impl<'a> Table<'a> {
             data.iter().all(|row| row.len() == headers.len()),
             "number of headers must match columns in data"
         );
+    }
+
+    fn apply_max_rows(mut data: Vec<Vec<&str>>, max_rows: usize, nb_cols: usize) -> Vec<Vec<&str>> {
+        if data.len() <= max_rows {
+            return data; // no-op.
+        }
+
+        if max_rows == 0 {
+            return vec![["..."].repeat(nb_cols)];
+        }
+
+        if max_rows == 1 {
+            data.truncate(1);
+            return data
+                .into_iter()
+                .chain(iter::once(["..."].repeat(nb_cols)))
+                .collect();
+        }
+
+        // Bias towards more tail elements.
+        let nb_head = max_rows / 2;
+        let nb_tail = max_rows - nb_head;
+
+        let tail = data.split_off(data.len() - nb_tail);
+        data.truncate(nb_head);
+        let head = data;
+
+        head.into_iter()
+            .chain(iter::once(["..."].repeat(nb_cols)))
+            .chain(tail)
+            .collect()
     }
 
     /// Determine the width of each column.
@@ -529,6 +577,262 @@ SHORT  WITH SPACE  LAST COLUMN
                 vec!["---", "---"],
             ])
             .to_string();
+    }
+
+    #[test]
+    fn table_max_rows_regular() {
+        let table = Table::new()
+            .max_rows(5)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["1.", "---", "---"],
+                vec!["2.", "---", "---"],
+                vec!["3.", "------------", "------------"],
+                vec!["4.", "------------", "------------"],
+                vec!["5.", "---", "---"],
+                vec!["6.", "---", "---"],
+                vec!["7.", "---", "---"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#    COLUMN 1  COLUMN 2
+1.   ---            ---
+2.   ---            ---
+...  ...            ...
+5.   ---            ---
+6.   ---            ---
+7.   ---            ---
+"
+        );
+    }
+
+    #[test]
+    fn table_max_rows_smallest_regular_case() {
+        let table = Table::new()
+            .max_rows(2)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["1.", "---", "---"],
+                vec!["2.", "---", "---"],
+                vec!["3.", "---", "---"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#    COLUMN 1  COLUMN 2
+1.   ---            ---
+...  ...            ...
+3.   ---            ---
+"
+        );
+    }
+
+    #[test]
+    fn table_max_rows_elided_rows_do_not_impact_column_width() {
+        let table = Table::new()
+            .max_rows(1)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["1.", "---", "---"],
+                vec!["2.", "------------", "------------"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#    COLUMN 1  COLUMN 2
+1.   ---            ---
+...  ...            ...
+"
+        );
+    }
+
+    #[test]
+    fn table_max_rows_gt_nb_rows() {
+        let table = Table::new()
+            .max_rows(8)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["1.", "---", "---"],
+                vec!["2.", "---", "---"],
+                vec!["3.", "------------", "------------"],
+                vec!["4.", "------------", "------------"],
+                vec!["5.", "---", "---"],
+                vec!["6.", "---", "---"],
+                vec!["7.", "---", "---"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#   COLUMN 1          COLUMN 2
+1.  ---                    ---
+2.  ---                    ---
+3.  ------------  ------------
+4.  ------------  ------------
+5.  ---                    ---
+6.  ---                    ---
+7.  ---                    ---
+"
+        );
+    }
+
+    #[test]
+    fn table_max_rows_eq_nb_rows() {
+        let table = Table::new()
+            .max_rows(7)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["1.", "---", "---"],
+                vec!["2.", "---", "---"],
+                vec!["3.", "------------", "------------"],
+                vec!["4.", "------------", "------------"],
+                vec!["5.", "---", "---"],
+                vec!["6.", "---", "---"],
+                vec!["7.", "---", "---"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#   COLUMN 1          COLUMN 2
+1.  ---                    ---
+2.  ---                    ---
+3.  ------------  ------------
+4.  ------------  ------------
+5.  ---                    ---
+6.  ---                    ---
+7.  ---                    ---
+"
+        );
+    }
+
+    #[test]
+    fn table_max_rows_max_zero() {
+        let table = Table::new()
+            .max_rows(0)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["1.", "---", "---"],
+                vec!["2.", "------------", "------------"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#    COLUMN 1  COLUMN 2
+...  ...            ...
+"
+        );
+    }
+
+    #[test]
+    fn table_max_rows_max_zero_with_empty_data() {
+        let table = Table::new()
+            .max_rows(0)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[] as &[Vec<&str>; 0])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#  COLUMN 1  COLUMN 2
+"
+        );
+    }
+
+    #[test]
+    fn table_max_rows_max_zero_without_header() {
+        // It is forbidden to have both empty headers and empty data.
+        // Here we render with a 100% valid table, but clear the data
+        // through `max_rows(0)`.
+        let table = Table::new()
+            .max_rows(0)
+            .data(&[vec!["---", "----------------"]])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(table, "...  ...\n");
+    }
+
+    #[test]
+    fn table_max_rows_max_one() {
+        let table = Table::new()
+            .max_rows(1)
+            .headers(&["#", "COLUMN 1", "COLUMN 2"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["1.", "---", "---"],
+                vec!["2.", "------------", "------------"],
+                vec!["3.", "---", "---"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+#    COLUMN 1  COLUMN 2
+1.   ---            ---
+...  ...            ...
+"
+        );
     }
 
     #[test]
