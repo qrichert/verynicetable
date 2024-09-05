@@ -2,20 +2,12 @@ use std::{fmt, fmt::Write, iter};
 
 const TABLE_COLUMN_SEPARATOR: &str = "  ";
 
-#[derive(Debug, Default)]
-pub struct Table<'a> {
-    headers: Option<Vec<&'a str>>,
-    alignments: Option<&'a [fmt::Alignment]>,
-    data: Option<Vec<Vec<&'a str>>>,
-}
-
 /// `Table` builder as a blueprint with checks and conversions made.
 ///
-/// `Table` can hold "invalid" state during the build process. Both
-/// `headers` and `data` are a required for example, but you can't set
-/// both at exactly the same time. And `alignments`, while being
-/// required during rendering, can even be omitted in the builder as
-/// they have defaults we can use.
+/// `Table` can hold "invalid" state during the build process; you can't
+/// possibly set everything at once. And also `alignments`, while being
+/// required during rendering, can be omitted in the builder as they
+/// have defaults we can use.
 ///
 /// `TableBlueprint` on the other hand, is ready-to-render. All required
 /// fields are ensured to be set, and it holds additional context for
@@ -25,6 +17,19 @@ struct TableBlueprint<'a> {
     alignments: Vec<fmt::Alignment>,
     data: Vec<Vec<&'a str>>,
     columns_width: Vec<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Table<'a> {
+    headers: Option<Vec<&'a str>>,
+    alignments: Option<&'a [fmt::Alignment]>,
+    data: Option<Vec<Vec<&'a str>>>,
+}
+
+impl<'a> Default for Table<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> Table<'a> {
@@ -88,39 +93,64 @@ impl<'a> Table<'a> {
             }
         };
 
-        // Wrongly marked uncovered.
-        #[cfg(not(tarpaulin_include))]
-        let rows = iter::once(&table.headers).chain(table.data.iter());
+        if !table.headers.iter().all(|header| header.is_empty()) {
+            render_row(&table.headers);
+        }
 
-        for row in rows {
-            render_row(row);
+        for row in table.data {
+            render_row(&row);
         }
 
         output
     }
 
     fn make_table_blueprint(&self) -> TableBlueprint {
-        let headers = self.headers.as_ref().expect("headers are required");
-        let alignments = self.get_alignments_or_default();
+        let nb_cols = self.determine_nb_columns();
+
+        let headers = self.get_headers_or_default(nb_cols);
+        let alignments = self.get_alignments_or_default(nb_cols);
         let data = self.data.as_ref().expect("data is required");
 
-        Self::ensure_data_consistency(headers, &alignments, data);
+        Self::ensure_data_consistency(&headers, &alignments, data);
 
-        let columns_width = Self::determine_columns_width(headers, data);
+        let columns_width = Self::determine_columns_width(&headers, data);
 
         TableBlueprint {
-            headers: headers.to_owned(),
+            headers,
             alignments,
             data: data.to_owned(),
             columns_width,
         }
     }
 
-    fn get_alignments_or_default(&self) -> Vec<fmt::Alignment> {
-        let nb_headers = self.headers.as_ref().expect("headers are required").len();
+    #[cfg(not(tarpaulin_include))] // Wrongly marked uncovered.
+    fn determine_nb_columns(&self) -> usize {
+        if let Some(headers) = self.headers.as_ref() {
+            return headers.len();
+        }
+        if let Some(data) = self.data.as_ref() {
+            if !data.is_empty() {
+                return data[0].len();
+            }
+        }
+        panic!("headers and data cannot both be empty");
+    }
+
+    fn get_headers_or_default(&self, nb_cols: usize) -> Vec<&str> {
+        match self.headers.as_ref() {
+            Some(headers) => headers.to_owned(),
+            // This may look a bit hacky (it is), but it plays nicely
+            // with the overall logic (`Option` would make the code too
+            // convoluted). Moreover, it has the added benefit of
+            // handling the special case where the user does it himself.
+            None => [""].repeat(nb_cols),
+        }
+    }
+
+    fn get_alignments_or_default(&self, nb_cols: usize) -> Vec<fmt::Alignment> {
         match self.alignments {
             Some(alignments) => alignments.to_vec(),
-            None => [fmt::Alignment::Left].repeat(nb_headers),
+            None => [fmt::Alignment::Left].repeat(nb_cols),
         }
     }
 
@@ -183,6 +213,11 @@ mod tests {
     use super::*;
 
     #[test]
+    fn table_default_builder() {
+        assert_eq!(Table::new(), Table::default());
+    }
+
+    #[test]
     fn table_regular() {
         let table = Table::new()
             .headers(&["SHORT", "WITH SPACE", "LAST COLUMN"])
@@ -208,6 +243,53 @@ mod tests {
 SHORT                     WITH SPACE             LAST COLUMN
 Value larger than header  Column name has space  No trailing whitespace
 ---                       ---                    ---
+"
+        );
+    }
+
+    #[test]
+    fn table_all_empty_headers_not_rendered() {
+        let table = Table::new()
+            .headers(&["", ""])
+            .data(&[vec!["---", "----------------"]])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+---  ----------------
+"
+        );
+    }
+
+    #[test]
+    fn table_some_empty_headers_all_rendered() {
+        let table = Table::new()
+            .headers(&["", "-"])
+            .data(&[vec!["---", "----------------"]])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            r"     -
+---  ----------------
+"
+        );
+    }
+
+    #[test]
+    fn table_default_headers() {
+        let table = Table::new()
+            .data(&[vec!["---", "----------------"]])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+---  ----------------
 "
         );
     }
@@ -283,6 +365,25 @@ VALUE LEFT  COLUMN LEFT
     }
 
     #[test]
+    fn table_default_headers_and_alignments() {
+        let table = Table::new()
+            .data(&[
+                vec!["---", "----------------"],
+                vec!["----------------", "---"],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+---               ----------------
+----------------  ---
+"
+        );
+    }
+
+    #[test]
     fn table_with_empty_data() {
         let table = Table::new()
             .headers(&["SHORT", "WITH SPACE", "LAST COLUMN"])
@@ -316,7 +417,19 @@ SHORT  WITH SPACE  LAST COLUMN
     }
 
     #[test]
-    fn table_completely_with_default_alignments() {
+    #[should_panic(expected = "headers and data cannot both be empty")]
+    fn table_error_completely_empty_with_default_headers() {
+        let table = Table::new()
+            .alignments(&[])
+            .data(&[] as &[Vec<&str>; 0])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(table, "\n");
+    }
+
+    #[test]
+    fn table_completely_empty_with_default_alignments() {
         let table = Table::new()
             .headers(&[] as &[&str; 0])
             .data(&[] as &[Vec<&str>; 0])
@@ -327,8 +440,17 @@ SHORT  WITH SPACE  LAST COLUMN
     }
 
     #[test]
+    #[should_panic(expected = "headers and data cannot both be empty")]
+    fn table_error_completely_empty_with_default_headers_and_alignments() {
+        let table = Table::new().data(&[] as &[Vec<&str>; 0]).to_string();
+
+        println!("{table}");
+        assert_eq!(table, "\n");
+    }
+
+    #[test]
     #[should_panic(expected = "number of headers must match alignments")]
-    fn table_nb_headers_neq_nb_alignments() {
+    fn table_error_nb_headers_neq_nb_alignments() {
         Table::new()
             .headers(&["COLUMN 1", "COLUMN 2"])
             .alignments(&[
@@ -342,7 +464,7 @@ SHORT  WITH SPACE  LAST COLUMN
 
     #[test]
     #[should_panic(expected = "number of headers must match columns in data")]
-    fn table_nb_headers_neq_nb_columns_in_data() {
+    fn table_error_nb_headers_neq_nb_columns_in_data() {
         Table::new()
             .headers(&["COLUMN 1", "COLUMN 2"])
             .alignments(&[fmt::Alignment::Left, fmt::Alignment::Left])
@@ -352,5 +474,24 @@ SHORT  WITH SPACE  LAST COLUMN
                 vec!["---", "---"],
             ])
             .to_string();
+    }
+
+    #[test]
+    fn table_render_multiple_times() {
+        let alignments = [fmt::Alignment::Left];
+        let data = [vec!["---"]];
+        let table = Table::new()
+            .headers(&["HEADER"])
+            .alignments(&alignments)
+            .data(&data)
+            .to_owned();
+
+        let render_1 = table.to_string();
+        let render_2 = table.to_string();
+
+        println!("{table}");
+
+        assert_eq!(render_1, "HEADER\n---\n");
+        assert_eq!(render_1, render_2);
     }
 }
