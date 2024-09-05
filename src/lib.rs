@@ -1,8 +1,46 @@
+//! Number one table.
+//!
+//! Very basic and lightweight table builder to print tabular data.
+//!
+//!
+//! # Examples
+//!
+//! ```
+//! use std::fmt::Alignment::{Left, Right};
+//! use verynicetable::Table;
+//!
+//! let ports = vec![
+//!     vec!["rapportd", "449", "Quentin", "*:61165"],
+//!     vec!["Python", "22396", "Quentin", "*:8000"],
+//!     vec!["rustrover", "30928", "Quentin", "127.0.0.1:63342"],
+//!     vec!["Transmiss", "94671", "Quentin", "*:51413"],
+//!     vec!["Transmiss", "94671", "Quentin", "*:51413"],
+//! ];
+//!
+//! let table = Table::new()
+//!     .headers(&["COMMAND", "PID", "USER", "HOST:PORTS"])
+//!     .alignments(&[Left, Right, Left, Right])
+//!     .data(&ports)
+//!     .to_string();
+//!
+//! assert_eq!(
+//!     table,
+//!     "\
+//! COMMAND      PID  USER          HOST:PORTS
+//! rapportd     449  Quentin          *:61165
+//! Python     22396  Quentin           *:8000
+//! rustrover  30928  Quentin  127.0.0.1:63342
+//! Transmiss  94671  Quentin          *:51413
+//! Transmiss  94671  Quentin          *:51413
+//! "
+//! );
+//! ```
+
 use std::{fmt, fmt::Write, iter};
 
 const TABLE_COLUMN_SEPARATOR: &str = "  ";
 
-/// `Table` builder as a blueprint with checks and conversions made.
+/// Ready-to-render `Table` blueprint with checks and conversions made.
 ///
 /// `Table` can hold "invalid" state during the build process; you can't
 /// possibly set everything at once. And also `alignments`, while being
@@ -19,6 +57,23 @@ struct TableBlueprint<'a> {
     columns_width: Vec<usize>,
 }
 
+/// `Table` builder.
+///
+/// The methods of interest are [`new()`](Self::new),
+/// [`headers()`](Self::headers), [`alignments()`](Self::alignments),
+/// and [`data()`](Self::data).
+///
+/// This can possibly hold intermediary "invalid" state. Which is
+/// perfectly normal for a builder.
+///
+/// # Implementation Details
+///
+/// During rendering, a `TableBuilder` (private) is first created
+/// through `make_table_blueprint()`. `TableBuilder` then drives the
+/// printing of the table to the terminal.
+///
+/// Contrary to `Table`, `TableBuilder` can only hold valid
+/// ready-to-render state.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Table<'a> {
     headers: Option<Vec<&'a str>>,
