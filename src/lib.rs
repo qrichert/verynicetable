@@ -2,6 +2,8 @@
 //!
 //! Very basic and lightweight table builder to print tabular data.
 //!
+//! The struct of interest is [`Table`], which is a builder that
+//! implements `Display`.
 //!
 //! # Examples
 //!
@@ -66,10 +68,12 @@ struct TableBlueprint<'a> {
 /// [`headers()`](Self::headers), [`alignments()`](Self::alignments),
 /// [`data()`](Self::data) and [`max_rows()`](Self::max_rows).
 ///
-/// This can possibly hold intermediary "invalid" state. Which is
-/// perfectly normal for a builder.
+/// To render the table, use the `Display` trait's method `to_string()`.
 ///
 /// # Implementation Details
+///
+/// `Table` can possibly hold intermediary "invalid" state during
+/// building. Which is perfectly normal for a builder.
 ///
 /// During rendering, a `TableBuilder` (private) is first created
 /// through `make_table_blueprint()`. `TableBuilder` then drives the
