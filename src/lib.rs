@@ -134,8 +134,8 @@ impl<'a> Table<'a> {
         self
     }
 
-    pub fn column_separator(&mut self, separator: &'a impl AsRef<str>) -> &mut Self {
-        self.column_separator = Some(separator.as_ref());
+    pub fn column_separator(&mut self, separator: &'a str) -> &mut Self {
+        self.column_separator = Some(separator);
         self
     }
 
@@ -863,7 +863,7 @@ SHORT  WITH SPACE  LAST COLUMN
                 vec!["------", "------", "------"],
                 vec!["---", "---", "---"],
             ])
-            .column_separator(&"|")
+            .column_separator("|")
             .to_string();
 
         println!("{table}");
