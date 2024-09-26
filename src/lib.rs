@@ -41,7 +41,8 @@
 //! );
 //! ```
 
-use std::{fmt, fmt::Write, iter};
+use std::fmt;
+use std::iter;
 
 const DEFAULT_COLUMN_SEPARATOR: &str = "  ";
 
@@ -69,7 +70,8 @@ struct TableBlueprint<'a> {
 /// [`alignments()`], [`data()`], [`max_rows()`], and
 /// [`column_separator()`].
 ///
-/// To render the table, use the `Display` trait's method `to_string()`.
+/// To render the table, use the `Display` trait's method `to_string()`,
+/// or call [`render()`] to write to a `fmt::Formatter`.
 ///
 /// [`new()`]: Self::new
 /// [`headers()`]: Self::headers
@@ -77,6 +79,7 @@ struct TableBlueprint<'a> {
 /// [`data()`]: Self::data
 /// [`max_rows()`]: Self::max_rows
 /// [`column_separator()`]: Self::column_separator
+/// [`render()`]: Self::render
 ///
 /// # Implementation Details
 ///
@@ -146,14 +149,12 @@ impl<'a> Table<'a> {
         self
     }
 
-    fn render(&self) -> String {
+    pub fn render(&self, output: &mut fmt::Formatter) -> fmt::Result {
         let table = self.make_table_blueprint();
 
         if table.data.is_empty() {
-            return format!("{}\n", table.headers.join("  "));
+            return writeln!(output, "{}", table.headers.join("  "));
         }
-
-        let mut output = String::new();
 
         let mut render_row = |row: &Vec<&str>| {
             for (i, cell) in row.iter().enumerate() {
@@ -169,10 +170,10 @@ impl<'a> Table<'a> {
                     fmt::Alignment::Center => write!(output, "{cell:^width$}"),
                 };
 
-                if is_last_column {
-                    output.push('\n');
+                _ = if is_last_column {
+                    writeln!(output)
                 } else {
-                    output.push_str(table.column_separator);
+                    write!(output, "{}", table.column_separator)
                 }
             }
         };
@@ -185,7 +186,7 @@ impl<'a> Table<'a> {
             render_row(&row);
         }
 
-        output
+        Ok(())
     }
 
     fn make_table_blueprint(&self) -> TableBlueprint {
@@ -327,8 +328,7 @@ impl<'a> Table<'a> {
 
 impl fmt::Display for Table<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let output = self.render();
-        write!(f, "{output}")
+        self.render(f)
     }
 }
 
