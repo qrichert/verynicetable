@@ -65,11 +65,18 @@ struct TableBlueprint<'a> {
 
 /// `Table` builder.
 ///
-/// The methods of interest are [`new()`](Self::new),
-/// [`headers()`](Self::headers), [`alignments()`](Self::alignments),
-/// [`data()`](Self::data) and [`max_rows()`](Self::max_rows).
+/// The methods of interest are [`new()`], [`headers()`],
+/// [`alignments()`], [`data()`], [`max_rows()`], and
+/// [`column_separator()`].
 ///
 /// To render the table, use the `Display` trait's method `to_string()`.
+///
+/// [`new()`]: Self::new
+/// [`headers()`]: Self::headers
+/// [`alignments()`]: Self::alignments
+/// [`data()`]: Self::data
+/// [`max_rows()`]: Self::max_rows
+/// [`column_separator()`]: Self::column_separator
 ///
 /// # Implementation Details
 ///
