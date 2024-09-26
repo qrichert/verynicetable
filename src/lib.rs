@@ -43,7 +43,7 @@
 
 use std::{fmt, fmt::Write, iter};
 
-const TABLE_COLUMN_SEPARATOR: &str = "  ";
+const DEFAULT_COLUMN_SEPARATOR: &str = "  ";
 
 /// Ready-to-render `Table` blueprint with checks and conversions made.
 ///
@@ -60,6 +60,7 @@ struct TableBlueprint<'a> {
     alignments: Vec<fmt::Alignment>,
     data: Vec<Vec<&'a str>>,
     columns_width: Vec<usize>,
+    column_separator: &'a str,
 }
 
 /// `Table` builder.
@@ -87,6 +88,7 @@ pub struct Table<'a> {
     alignments: Option<&'a [fmt::Alignment]>,
     data: Option<Vec<Vec<&'a str>>>,
     max_rows: Option<usize>,
+    column_separator: Option<&'a str>,
 }
 
 impl<'a> Default for Table<'a> {
@@ -103,6 +105,7 @@ impl<'a> Table<'a> {
             alignments: None,
             data: None,
             max_rows: None,
+            column_separator: None,
         }
     }
 
@@ -128,6 +131,11 @@ impl<'a> Table<'a> {
 
     pub fn max_rows(&mut self, max_rows: usize) -> &mut Self {
         self.max_rows = Some(max_rows);
+        self
+    }
+
+    pub fn column_separator(&mut self, separator: &'a impl AsRef<str>) -> &mut Self {
+        self.column_separator = Some(separator.as_ref());
         self
     }
 
@@ -157,7 +165,7 @@ impl<'a> Table<'a> {
                 if is_last_column {
                     output.push('\n');
                 } else {
-                    output.push_str(TABLE_COLUMN_SEPARATOR);
+                    output.push_str(table.column_separator);
                 }
             }
         };
@@ -190,12 +198,14 @@ impl<'a> Table<'a> {
         }
 
         let columns_width = Self::determine_columns_width(&headers, &data);
+        let column_separator = self.column_separator.unwrap_or(DEFAULT_COLUMN_SEPARATOR);
 
         TableBlueprint {
             headers,
             alignments,
             data,
             columns_width,
+            column_separator,
         }
     }
 
@@ -835,6 +845,34 @@ SHORT  WITH SPACE  LAST COLUMN
 #    COLUMN 1  COLUMN 2
 1.   ---            ---
 ...  ...            ...
+"
+        );
+    }
+
+    #[test]
+    fn table_column_separator() {
+        let table = Table::new()
+            .headers(&["1", "2", "3"])
+            .alignments(&[
+                fmt::Alignment::Right,
+                fmt::Alignment::Center,
+                fmt::Alignment::Left,
+            ])
+            .data(&[
+                vec!["---", "---", "---"],
+                vec!["------", "------", "------"],
+                vec!["---", "---", "---"],
+            ])
+            .column_separator(&"|")
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "     1|  2   |3
+   ---| ---  |---
+------|------|------
+   ---| ---  |---
 "
         );
     }
