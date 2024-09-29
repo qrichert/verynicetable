@@ -41,6 +41,7 @@
 //! );
 //! ```
 
+use std::borrow::Cow;
 use std::fmt;
 use std::iter;
 
@@ -149,6 +150,7 @@ impl<'a> Table<'a> {
         self
     }
 
+    #[allow(clippy::missing_errors_doc)]
     pub fn render(&self, output: &mut fmt::Formatter) -> fmt::Result {
         let table = self.make_table_blueprint();
 
@@ -165,9 +167,9 @@ impl<'a> Table<'a> {
 
                 let _ = match alignment {
                     fmt::Alignment::Left if is_last_column => write!(output, "{cell}"),
-                    fmt::Alignment::Left => write!(output, "{cell:<width$}"),
-                    fmt::Alignment::Right => write!(output, "{cell:>width$}"),
-                    fmt::Alignment::Center => write!(output, "{cell:^width$}"),
+                    fmt::Alignment::Left => write!(output, "{}", Self::align_left(cell, width)),
+                    fmt::Alignment::Right => write!(output, "{}", Self::align_right(cell, width)),
+                    fmt::Alignment::Center => write!(output, "{}", Self::align_center(cell, width)),
                 };
 
                 _ = if is_last_column {
@@ -187,6 +189,119 @@ impl<'a> Table<'a> {
         }
 
         Ok(())
+    }
+
+    /// Left-align string, ignoring ANSI color sequences.
+    ///
+    /// Without colors, it is equivalent to `{string:<width$}`.
+    fn align_left(string: &str, width: usize) -> Cow<str> {
+        let string_len_without_colors = Self::strip_ansi_colors(string).len();
+        let padding_len = width.saturating_sub(string_len_without_colors);
+        if padding_len == 0 {
+            return Cow::Borrowed(string);
+        }
+        Cow::Owned(format!("{string}{}", " ".repeat(padding_len)))
+    }
+
+    /// Right-align string, ignoring ANSI color sequences.
+    ///
+    /// Without colors, it is equivalent to `{string:>width$}`.
+    fn align_right(string: &str, width: usize) -> Cow<str> {
+        let string_len_without_colors = Self::strip_ansi_colors(string).len();
+        let padding_len = width.saturating_sub(string_len_without_colors);
+        if padding_len == 0 {
+            return Cow::Borrowed(string);
+        }
+        Cow::Owned(format!("{}{string}", " ".repeat(padding_len)))
+    }
+
+    /// Center-align string, ignoring ANSI color sequences.
+    ///
+    /// Without colors, it is equivalent to `{string:^width$}`.
+    fn align_center(string: &str, width: usize) -> Cow<str> {
+        let string_len_without_colors = Self::strip_ansi_colors(string).len();
+        let padding_len = width.saturating_sub(string_len_without_colors);
+        if padding_len == 0 {
+            return Cow::Borrowed(string);
+        }
+        // `{string:^width$}` is left-biased if odd.
+        let padding_left = padding_len / 2;
+        let padding_right = padding_len - padding_left;
+        Cow::Owned(format!(
+            "{}{string}{}",
+            " ".repeat(padding_left),
+            " ".repeat(padding_right)
+        ))
+    }
+
+    /// Remove ANSI color sequences from strings.
+    ///
+    /// This function considers any sequence starting with `\x1b[`, up
+    /// until the first `m`, an ANSI sequence. It is naive, in the sense
+    /// that it won't bother to check whether se sequence is terminated,
+    /// or even valid. Basically, `\x1b[` starts stripping, and `m` ends
+    /// stripping. It's on the caller to only pass in valid sequences.
+    ///
+    /// This function delays allocation _until necessary_. As long as
+    /// the output matches the input (no ANSI sequence encountered), it
+    /// will not allocate memory. But, as soon as the output differs
+    /// from the input (ANSI sequence characters need to be removed),
+    /// memory for a new `String` will be allocated. This optimization
+    /// may seem far-fetched, but in the large majority of cases there
+    /// may be a lot of strings to process, but they most probably won't
+    /// be colored. So we make sure to save the overhead.
+    fn strip_ansi_colors(string: &str) -> Cow<str> {
+        enum State {
+            NotInSequence,
+            InSequence,
+        }
+
+        let mut state = State::NotInSequence;
+        let mut chars = string.chars().enumerate().peekable();
+
+        // Don't allocate just yet.
+        let mut output_matches_input = true;
+        let mut out = String::new();
+
+        #[cfg(not(tarpaulin_include))] // Wrongly marked uncovered.
+        while let Some((i, char)) = chars.next() {
+            match (char, &state) {
+                ('\x1b', State::NotInSequence) => {
+                    if let Some((_, char)) = chars.peek() {
+                        if *char == '[' {
+                            state = State::InSequence;
+
+                            // From now on, input and output differ.
+                            if output_matches_input {
+                                output_matches_input = false;
+                                // The shortest sequence is 4 chars (`\x1b[0m`).
+                                out.reserve_exact(string.len() - 4);
+                                out = string.chars().take(i).collect();
+                            }
+
+                            continue;
+                        }
+                    }
+                }
+                ('m', State::InSequence) => {
+                    state = State::NotInSequence;
+                    continue;
+                }
+                (_, State::NotInSequence) => {}
+                (_, State::InSequence) => continue,
+            };
+            // As long as the output matches the input, this is a no-op.
+            if output_matches_input {
+                continue;
+            }
+            out.push(char);
+        }
+
+        if output_matches_input {
+            Cow::Borrowed(string)
+        } else {
+            Cow::Owned(out)
+        }
     }
 
     fn make_table_blueprint(&self) -> TableBlueprint {
@@ -269,6 +384,7 @@ impl<'a> Table<'a> {
         );
     }
 
+    /// Drop rows in the middle to conform to the 'max rows' setting.
     fn apply_max_rows(mut data: Vec<Vec<&str>>, max_rows: usize, nb_cols: usize) -> Vec<Vec<&str>> {
         if data.len() <= max_rows {
             return data; // no-op.
@@ -320,7 +436,7 @@ impl<'a> Table<'a> {
 
         header
             .chain(column_values)
-            .map(|x| x.chars().count())
+            .map(|x| Self::strip_ansi_colors(x).chars().count())
             .max()
             .expect("iterator cannot be empty because header is required")
     }
@@ -367,6 +483,25 @@ mod tests {
 SHORT                     WITH SPACE             LAST COLUMN
 Value larger than header  Column name has space  No trailing whitespace
 ---                       ---                    ---
+"
+        );
+    }
+
+    #[test]
+    fn table_single_column() {
+        let table = Table::new()
+            .headers(&["foo"])
+            .data(&[vec!["bar"], vec!["baz"]])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+foo
+bar
+baz
 "
         );
     }
@@ -886,11 +1021,10 @@ SHORT  WITH SPACE  LAST COLUMN
 
     #[test]
     fn table_render_multiple_times() {
-        let alignments = [fmt::Alignment::Left];
         let data = [vec!["---"]];
         let table = Table::new()
             .headers(&["HEADER"])
-            .alignments(&alignments)
+            .alignments(&[fmt::Alignment::Left])
             .data(&data)
             .to_owned();
 
@@ -901,5 +1035,154 @@ SHORT  WITH SPACE  LAST COLUMN
 
         assert_eq!(render_1, "HEADER\n---\n");
         assert_eq!(render_1, render_2);
+    }
+
+    #[test]
+    fn table_ansi_colors_not_counted_in_column_width_align_left() {
+        let table = Table::new()
+            .headers(&["", "", ""])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+            ])
+            .data(&[
+                vec!["-", "\x1b[92mfoo\x1b[0m", "-"], // 3 chars.
+                vec!["-", "foo", "-"],                // 3 chars.
+                vec!["-", "barbaz", "-"],             // 6 chars.
+            ])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        // `foo` should have right padding because without colors,
+        // the string is shorter than `barbaz`.
+        assert_eq!(
+            table,
+            "\
+-|\x1b[92mfoo\x1b[0m   |-
+-|foo   |-
+-|barbaz|-
+"
+        );
+    }
+
+    #[test]
+    fn table_ansi_colors_not_counted_in_column_width_align_right() {
+        let table = Table::new()
+            .headers(&["", "", ""])
+            .alignments(&[
+                fmt::Alignment::Right,
+                fmt::Alignment::Right,
+                fmt::Alignment::Right,
+            ])
+            .data(&[
+                vec!["-", "\x1b[92mfoo\x1b[0m", "-"], // 3 chars.
+                vec!["-", "foo", "-"],                // 3 chars.
+                vec!["-", "barbaz", "-"],             // 6 chars.
+            ])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        // `foo` should have left padding because without colors,
+        // the string is shorter than `barbaz`.
+        assert_eq!(
+            table,
+            "\
+-|   \x1b[92mfoo\x1b[0m|-
+-|   foo|-
+-|barbaz|-
+"
+        );
+    }
+
+    #[test]
+    fn table_ansi_colors_not_counted_in_column_width_align_center() {
+        let table = Table::new()
+            .headers(&["", "", ""])
+            .alignments(&[
+                fmt::Alignment::Center,
+                fmt::Alignment::Center,
+                fmt::Alignment::Center,
+            ])
+            .data(&[
+                vec!["-", "\x1b[92mfoo\x1b[0m", "-"], // 3 chars.
+                vec!["-", "foo", "-"],                // 3 chars.
+                vec!["-", "barbaz", "-"],             // 6 chars.
+            ])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        // `foo` should have left and right padding because without
+        // colors, the string is shorter than `barbaz`.
+        assert_eq!(
+            table,
+            "\
+-| \x1b[92mfoo\x1b[0m  |-
+-| foo  |-
+-|barbaz|-
+"
+        );
+    }
+
+    #[test]
+    fn table_ansi_colors_in_headers() {
+        let table = Table::new()
+            .headers(&["-", "\x1b[92mhi\x1b[0m", "-"]) // 2 chars.
+            .alignments(&[
+                fmt::Alignment::Center,
+                fmt::Alignment::Center,
+                fmt::Alignment::Center,
+            ])
+            .data(&[
+                vec!["-", "hi", "-"],     // 2 chars.
+                vec!["-", "barbaz", "-"], // 6 chars.
+            ])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        // `hi` should have left and right padding because without
+        // colors, the string is shorter than `barbaz`.
+        assert_eq!(
+            table,
+            "\
+-|  \x1b[92mhi\x1b[0m  |-
+-|  hi  |-
+-|barbaz|-
+"
+        );
+    }
+
+    #[test]
+    fn strip_ansi_colors() {
+        let strip = Table::strip_ansi_colors;
+
+        // Regular case.
+        assert_eq!(strip("\x1b[0;90mhello\x1b[0m"), "hello");
+        assert_eq!(strip("\u{1b}[0;91mhello\u{1b}[0m"), "hello");
+        assert_eq!(strip("\x1b[38;5;82mHello\x1b[0m"), "Hello");
+        assert_eq!(strip("hello \x1b[31mworld\x1b[0m!"), "hello world!");
+
+        // Edge cases.
+        assert_eq!(strip("hello world"), "hello world");
+        assert_eq!(strip(""), "");
+        assert_eq!(strip("\x1b[0;90m\x1b[0m"), "");
+
+        // Malformed ANSI sequences.
+        assert_eq!(strip("\x1b0;92mhello\x1b0m"), "\x1b0;92mhello\x1b0m");
+        assert_eq!(strip("\x1b[31hello"), ""); // missing 'm'
+        assert_eq!(strip("text with \x1b[no escape\x1b[0m"), "text with ");
+        assert_eq!(strip("\x1b[31mHello"), "Hello");
+        assert_eq!(strip("text\x1b"), "text\x1b");
+        assert_eq!(strip("text\x1b["), "text");
+
+        // Nested or consecutive escape sequences.
+        assert_eq!(strip("\x1b[0;90m\x1b[1;92mhello\x1b[0m"), "hello");
+        assert_eq!(strip("\x1b[31m\x1b[32mtext\x1b[0m"), "text");
+
+        assert_eq!(strip("\x1b[0;90mfoo\x1b[0m").len(), 3);
     }
 }
