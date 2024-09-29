@@ -1,4 +1,5 @@
 use std::fmt::Alignment::{Left, Right};
+
 use verynicetable::Table;
 
 fn main() {

@@ -50,9 +50,9 @@ const DEFAULT_COLUMN_SEPARATOR: &str = "  ";
 /// Ready-to-render `Table` blueprint with checks and conversions made.
 ///
 /// `Table` can hold "invalid" state during the build process; you can't
-/// possibly set everything at once. And also `alignments`, while being
-/// required during rendering, can be omitted in the builder as they
-/// have defaults we can use.
+/// possibly set everything at once. Besides, some fields that are
+/// required during rendering can safely can be omitted in the builder
+/// since they've got default values.
 ///
 /// `TableBlueprint` on the other hand, is ready-to-render. All required
 /// fields are ensured to be set, and it holds additional context for
@@ -165,7 +165,7 @@ impl<'a> Table<'a> {
 
                 let is_last_column = i == table.headers.len() - 1;
 
-                let _ = match alignment {
+                _ = match alignment {
                     fmt::Alignment::Left if is_last_column => write!(output, "{cell}"),
                     fmt::Alignment::Left => write!(output, "{}", Self::align_left(cell, width)),
                     fmt::Alignment::Right => write!(output, "{}", Self::align_right(cell, width)),
@@ -309,7 +309,7 @@ impl<'a> Table<'a> {
 
         let headers = self.get_headers_or_default(nb_cols);
         let alignments = self.get_alignments_or_default(nb_cols);
-        let mut data = self.data.as_ref().expect("data is required").to_owned();
+        let mut data = self.get_data_or_default();
 
         Self::ensure_data_consistency(&headers, &alignments, &data);
 
@@ -360,6 +360,13 @@ impl<'a> Table<'a> {
         match self.alignments {
             Some(alignments) => alignments.to_vec(),
             None => [fmt::Alignment::Left].repeat(nb_cols),
+        }
+    }
+
+    fn get_data_or_default(&self) -> Vec<Vec<&str>> {
+        match self.data.as_ref() {
+            Some(data) => data.to_owned(),
+            None => Vec::new(),
         }
     }
 
@@ -502,6 +509,26 @@ Value larger than header  Column name has space  No trailing whitespace
 foo
 bar
 baz
+"
+        );
+    }
+
+    #[test]
+    fn table_without_data() {
+        let table = Table::new()
+            .headers(&["SHORT", "WITH SPACE", "LAST COLUMN"])
+            .alignments(&[
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+                fmt::Alignment::Left,
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+SHORT  WITH SPACE  LAST COLUMN
 "
         );
     }
