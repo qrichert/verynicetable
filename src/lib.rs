@@ -42,7 +42,7 @@
 //! ```
 
 use std::borrow::Cow;
-use std::fmt;
+use std::fmt::{self, Write};
 use std::iter;
 
 const DEFAULT_COLUMN_SEPARATOR: &str = "  ";
@@ -51,8 +51,8 @@ const DEFAULT_COLUMN_SEPARATOR: &str = "  ";
 ///
 /// `Table` can hold "invalid" state during the build process; you can't
 /// possibly set everything at once. Besides, some fields that are
-/// required during rendering can safely can be omitted in the builder
-/// since they've got default values.
+/// required during rendering can safely be omitted in the builder since
+/// they've got default values.
 ///
 /// `TableBlueprint` on the other hand, is ready-to-render. All required
 /// fields are ensured to be set, and it holds additional context for
@@ -102,7 +102,7 @@ pub struct Table<'a> {
     column_separator: Option<&'a str>,
 }
 
-impl<'a> Default for Table<'a> {
+impl Default for Table<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -158,7 +158,12 @@ impl<'a> Table<'a> {
             return writeln!(output, "{}", table.headers.join("  "));
         }
 
+        // Share buffer across rows to minimize allocations.
+        let mut buffer = String::with_capacity(15 * table.headers.len());
+
         let mut render_row = |row: &Vec<&str>| {
+            buffer.clear();
+
             for (i, cell) in row.iter().enumerate() {
                 let width = table.columns_width[i];
                 let alignment = table.alignments[i];
@@ -166,18 +171,18 @@ impl<'a> Table<'a> {
                 let is_last_column = i == table.headers.len() - 1;
 
                 _ = match alignment {
-                    fmt::Alignment::Left if is_last_column => write!(output, "{cell}"),
-                    fmt::Alignment::Left => write!(output, "{}", Self::align_left(cell, width)),
-                    fmt::Alignment::Right => write!(output, "{}", Self::align_right(cell, width)),
-                    fmt::Alignment::Center => write!(output, "{}", Self::align_center(cell, width)),
+                    fmt::Alignment::Left if is_last_column => write!(buffer, "{cell}"),
+                    fmt::Alignment::Left => write!(buffer, "{}", Self::align_left(cell, width)),
+                    fmt::Alignment::Right => write!(buffer, "{}", Self::align_right(cell, width)),
+                    fmt::Alignment::Center => write!(buffer, "{}", Self::align_center(cell, width)),
                 };
 
-                _ = if is_last_column {
-                    writeln!(output)
-                } else {
-                    write!(output, "{}", table.column_separator)
+                if !is_last_column {
+                    _ = write!(buffer, "{}", table.column_separator);
                 }
             }
+
+            _ = writeln!(output, "{}", buffer.trim_end());
         };
 
         if !table.headers.iter().all(|header| header.is_empty()) {
@@ -576,6 +581,52 @@ SHORT  WITH SPACE  LAST COLUMN
             table,
             "\
 ---  ----------------
+"
+        );
+    }
+
+    #[test]
+    fn table_empty_rows_dont_contain_whitespace() {
+        let table = Table::new()
+            .headers(&["FOO", "BAR", "BAZ"])
+            .data(&[
+                vec!["----------", "", "----------"],
+                vec!["", "", ""],
+                vec!["", "----------", ""],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+FOO         BAR         BAZ
+----------              ----------
+
+            ----------
+"
+        );
+    }
+
+    #[test]
+    fn table_rows_dont_end_with_trailing_whitespace() {
+        let table = Table::new()
+            .headers(&["FOO", "BAR", "BAZ   "])
+            .data(&[
+                vec!["----------", "", "----------   "],
+                vec!["   ", "   ", "   "],
+                vec!["", "----------", ""],
+            ])
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+FOO         BAR         BAZ
+----------              ----------
+
+            ----------
 "
         );
     }
