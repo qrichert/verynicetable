@@ -57,6 +57,7 @@ const DEFAULT_COLUMN_SEPARATOR: &str = "  ";
 /// `TableBlueprint` on the other hand, is ready-to-render. All required
 /// fields are ensured to be set, and it holds additional context for
 /// drawing (e.g., `columns_width`).
+#[derive(Debug)]
 struct TableBlueprint<'a> {
     headers: Vec<&'a str>,
     alignments: Vec<fmt::Alignment>,
@@ -200,7 +201,7 @@ impl<'a> Table<'a> {
     ///
     /// Without colors, it is equivalent to `{string:<width$}`.
     fn align_left(string: &str, width: usize) -> Cow<str> {
-        let string_len_without_colors = Self::strip_ansi_colors(string).len();
+        let string_len_without_colors = Self::strip_ansi_colors(string).chars().count();
         let padding_len = width.saturating_sub(string_len_without_colors);
         if padding_len == 0 {
             return Cow::Borrowed(string);
@@ -212,7 +213,7 @@ impl<'a> Table<'a> {
     ///
     /// Without colors, it is equivalent to `{string:>width$}`.
     fn align_right(string: &str, width: usize) -> Cow<str> {
-        let string_len_without_colors = Self::strip_ansi_colors(string).len();
+        let string_len_without_colors = Self::strip_ansi_colors(string).chars().count();
         let padding_len = width.saturating_sub(string_len_without_colors);
         if padding_len == 0 {
             return Cow::Borrowed(string);
@@ -224,7 +225,7 @@ impl<'a> Table<'a> {
     ///
     /// Without colors, it is equivalent to `{string:^width$}`.
     fn align_center(string: &str, width: usize) -> Cow<str> {
-        let string_len_without_colors = Self::strip_ansi_colors(string).len();
+        let string_len_without_colors = Self::strip_ansi_colors(string).chars().count();
         let padding_len = width.saturating_sub(string_len_without_colors);
         if padding_len == 0 {
             return Cow::Borrowed(string);
@@ -279,7 +280,7 @@ impl<'a> Table<'a> {
                             // From now on, input and output differ.
                             if output_matches_input {
                                 output_matches_input = false;
-                                // The shortest sequence is 4 chars (`\x1b[0m`).
+                                // The shortest sequence is 4 bytes (`\x1b[0m`).
                                 out.reserve_exact(string.len() - 4);
                                 out = string.chars().take(i).collect();
                             }
@@ -442,6 +443,7 @@ impl<'a> Table<'a> {
         cols_width
     }
 
+    /// Find the cell with the longest content and return its length.
     fn width_of_longest_value_in_column(header: &str, column_values: &[&str]) -> usize {
         let header = iter::once(&header);
         let column_values = column_values.iter();
@@ -1113,6 +1115,106 @@ SHORT  WITH SPACE  LAST COLUMN
 
         assert_eq!(render_1, "HEADER\n---\n");
         assert_eq!(render_1, render_2);
+    }
+
+    #[test]
+    fn table_accented_characters_count_as_one_aligned_left() {
+        // Why this test? Because we had a bug where accented characters
+        // where not counted when computing the size of columns, which
+        // messed up the alignment. That's what the result looked like:
+        //
+        // ```
+        // éàô|abc
+        // 123  |abc
+        // -----|-----
+        // ```
+
+        let table = Table::new()
+            .headers(&["", ""])
+            .alignments(&[fmt::Alignment::Left, fmt::Alignment::Left])
+            .data(&[
+                vec!["éàô", "abc"],     // 3 chars.
+                vec!["123", "abc"],     // 3 chars.
+                vec!["-----", "-----"], // 3 chars.
+            ])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+éàô  |abc
+123  |abc
+-----|-----
+"
+        );
+    }
+
+    #[test]
+    fn table_accented_characters_count_as_one_aligned_right() {
+        // Why this test? Because we had a bug where accented characters
+        // where not counted when computing the size of columns, which
+        // messed up the alignment. That's what the result looked like:
+        //
+        // ```
+        // éàô|abc
+        // 123  |abc
+        // -----|-----
+        // ```
+
+        let table = Table::new()
+            .headers(&["", ""])
+            .alignments(&[fmt::Alignment::Right, fmt::Alignment::Right])
+            .data(&[
+                vec!["éà", "abc"],      // 2 chars.
+                vec!["123", "abc"],     // 3 chars.
+                vec!["-----", "-----"], // 3 chars.
+            ])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+\x20  éà|  abc
+  123|  abc
+-----|-----
+"
+        );
+    }
+
+    #[test]
+    fn table_accented_characters_count_as_one_aligned_center() {
+        let table = Table::new()
+            .headers(&["", ""])
+            .alignments(&[fmt::Alignment::Center, fmt::Alignment::Center])
+            .data(&[
+                vec!["éàô", "abc"],     // 3 chars.
+                vec!["123", "abc"],     // 3 chars.
+                vec!["-----", "-----"], // 3 chars.
+            ])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(
+            table,
+            "\
+\x20éàô | abc
+ 123 | abc
+-----|-----
+"
+        );
+    }
+
+    #[test]
+    fn table_width_of_longest_value_in_column() {
+        assert_eq!(
+            Table::width_of_longest_value_in_column("hello", &["foo", "héllo!"]),
+            6
+        );
     }
 
     #[test]
