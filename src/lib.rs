@@ -21,7 +21,7 @@
 //! ];
 //!
 //! let table = Table::new()
-//!     .headers(&["COMMAND", "PID", "USER", "HOST:PORTS"])
+//!     .headers(&["COMMAND", "PID", "USER", "HOST:PORT"])
 //!     .alignments(&[Left, Right, Left, Right])
 //!     .data(&ports)
 //!     .max_rows(5)
@@ -30,7 +30,7 @@
 //! assert_eq!(
 //!     table,
 //!     "\
-//! COMMAND      PID  USER          HOST:PORTS
+//! COMMAND      PID  USER           HOST:PORT
 //! rapportd     449  Quentin          *:61165
 //! Python     22396  Quentin           *:8000
 //! ...          ...  ...                  ...
@@ -243,10 +243,10 @@ impl<'a> Table<'a> {
     /// Remove ANSI color sequences from strings.
     ///
     /// This function considers any sequence starting with `\x1b[`, up
-    /// until the first `m`, an ANSI sequence. It is naive, in the sense
-    /// that it won't bother to check whether se sequence is terminated,
-    /// or even valid. Basically, `\x1b[` starts stripping, and `m` ends
-    /// stripping. It's on the caller to only pass in valid sequences.
+    /// until the first `m`, an ANSI sequence. It is naive, in that it
+    /// won't bother to check whether the sequence is terminated, or is
+    /// even valid. Basically, `\x1b[` starts stripping, and `m` ends
+    /// stripping. It's on the caller to pass in only valid sequences.
     ///
     /// This function delays allocation _until necessary_. As long as
     /// the output matches the input (no ANSI sequence encountered), it
@@ -1135,7 +1135,7 @@ SHORT  WITH SPACE  LAST COLUMN
             .data(&[
                 vec!["éàô", "abc"],     // 3 chars.
                 vec!["123", "abc"],     // 3 chars.
-                vec!["-----", "-----"], // 3 chars.
+                vec!["-----", "-----"], // 5 chars.
             ])
             .column_separator("|")
             .to_string();
@@ -1169,7 +1169,7 @@ SHORT  WITH SPACE  LAST COLUMN
             .data(&[
                 vec!["éà", "abc"],      // 2 chars.
                 vec!["123", "abc"],     // 3 chars.
-                vec!["-----", "-----"], // 3 chars.
+                vec!["-----", "-----"], // 5 chars.
             ])
             .column_separator("|")
             .to_string();
@@ -1193,7 +1193,7 @@ SHORT  WITH SPACE  LAST COLUMN
             .data(&[
                 vec!["éàô", "abc"],     // 3 chars.
                 vec!["123", "abc"],     // 3 chars.
-                vec!["-----", "-----"], // 3 chars.
+                vec!["-----", "-----"], // 5 chars.
             ])
             .column_separator("|")
             .to_string();

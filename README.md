@@ -26,7 +26,7 @@ fn main() {
     ];
 
     let table = Table::new()
-        .headers(&["COMMAND", "PID", "USER", "HOST:PORTS"])
+        .headers(&["COMMAND", "PID", "USER", "HOST:PORT"])
         .alignments(&[Left, Right, Left, Right])
         .data(&ports)
         .max_rows(5)
@@ -37,7 +37,7 @@ fn main() {
 ```
 
 ```
-COMMAND      PID  USER          HOST:PORTS
+COMMAND      PID  USER           HOST:PORT
 rapportd     449  Quentin          *:61165
 Python     22396  Quentin           *:8000
 ...          ...  ...                  ...

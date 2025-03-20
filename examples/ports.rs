@@ -13,7 +13,7 @@ fn main() {
     ];
 
     let table = Table::new()
-        .headers(&["COMMAND", "PID", "USER", "HOST:PORTS"])
+        .headers(&["COMMAND", "PID", "USER", "HOST:PORT"])
         .alignments(&[Left, Right, Left, Right])
         .data(&ports)
         .max_rows(5)
