@@ -464,6 +464,8 @@ impl fmt::Display for Table<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Alignment::{Center, Left, Right};
+
     use super::*;
 
     #[test]
@@ -475,11 +477,7 @@ mod tests {
     fn table_regular() {
         let table = Table::new()
             .headers(&["SHORT", "WITH SPACE", "LAST COLUMN"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-            ])
+            .alignments(&[Left, Left, Left])
             .data(&[
                 vec![
                     "Value larger than header",
@@ -524,11 +522,7 @@ baz
     fn table_without_data() {
         let table = Table::new()
             .headers(&["SHORT", "WITH SPACE", "LAST COLUMN"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-            ])
+            .alignments(&[Left, Left, Left])
             .to_string();
 
         println!("{table}");
@@ -637,11 +631,7 @@ FOO         BAR         BAZ
     fn table_headers_alignment() {
         let table = Table::new()
             .headers(&["ALIGN-LEFT", "ALIGN-CENTER", "ALIGN-RIGHT"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Center,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Center, Right])
             .data(&[
                 vec![
                     "Header is aligned Left",
@@ -667,11 +657,7 @@ Header is aligned Left  Header is aligned Center  Header is aligned Right
     fn table_values_alignment() {
         let table = Table::new()
             .headers(&["ALIGN-LEFT", "ALIGN-CENTER", "ALIGN-RIGHT"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Center,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Center, Right])
             .data(&[vec!["Left", "Center", "Right"], vec!["---", "---", "---"]])
             .to_string();
 
@@ -726,11 +712,7 @@ VALUE LEFT  COLUMN LEFT
     fn table_with_empty_data() {
         let table = Table::new()
             .headers(&["SHORT", "WITH SPACE", "LAST COLUMN"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-            ])
+            .alignments(&[Left, Left, Left])
             .data(&[] as &[Vec<&str>; 0])
             .to_string();
 
@@ -792,11 +774,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_error_nb_headers_neq_nb_alignments() {
         Table::new()
             .headers(&["COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-            ])
+            .alignments(&[Left, Left, Left])
             .data(&[vec!["---", "---"]])
             .to_string();
     }
@@ -806,7 +784,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_error_nb_headers_neq_nb_columns_in_data() {
         Table::new()
             .headers(&["COLUMN 1", "COLUMN 2"])
-            .alignments(&[fmt::Alignment::Left, fmt::Alignment::Left])
+            .alignments(&[Left, Left])
             .data(&[
                 vec!["---", "---"],
                 vec!["---", "---", "---"],
@@ -820,11 +798,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(5)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[
                 vec!["1.", "---", "---"],
                 vec!["2.", "---", "---"],
@@ -856,11 +830,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(2)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[
                 vec!["1.", "---", "---"],
                 vec!["2.", "---", "---"],
@@ -885,11 +855,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(1)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[
                 vec!["1.", "---", "---"],
                 vec!["2.", "------------", "------------"],
@@ -912,11 +878,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(8)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[
                 vec!["1.", "---", "---"],
                 vec!["2.", "---", "---"],
@@ -949,11 +911,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(7)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[
                 vec!["1.", "---", "---"],
                 vec!["2.", "---", "---"],
@@ -986,11 +944,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(0)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[
                 vec!["1.", "---", "---"],
                 vec!["2.", "------------", "------------"],
@@ -1012,11 +966,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(0)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[] as &[Vec<&str>; 0])
             .to_string();
 
@@ -1048,11 +998,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let table = Table::new()
             .max_rows(1)
             .headers(&["#", "COLUMN 1", "COLUMN 2"])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Left, Left, Right])
             .data(&[
                 vec!["1.", "---", "---"],
                 vec!["2.", "------------", "------------"],
@@ -1075,11 +1021,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_column_separator() {
         let table = Table::new()
             .headers(&["1", "2", "3"])
-            .alignments(&[
-                fmt::Alignment::Right,
-                fmt::Alignment::Center,
-                fmt::Alignment::Left,
-            ])
+            .alignments(&[Right, Center, Left])
             .data(&[
                 vec!["---", "---", "---"],
                 vec!["------", "------", "------"],
@@ -1104,7 +1046,7 @@ SHORT  WITH SPACE  LAST COLUMN
         let data = [vec!["---"]];
         let table = Table::new()
             .headers(&["HEADER"])
-            .alignments(&[fmt::Alignment::Left])
+            .alignments(&[Left])
             .data(&data)
             .to_owned();
 
@@ -1131,7 +1073,7 @@ SHORT  WITH SPACE  LAST COLUMN
 
         let table = Table::new()
             .headers(&["", ""])
-            .alignments(&[fmt::Alignment::Left, fmt::Alignment::Left])
+            .alignments(&[Left, Left])
             .data(&[
                 vec!["éàô", "abc"],     // 3 chars.
                 vec!["123", "abc"],     // 3 chars.
@@ -1165,7 +1107,7 @@ SHORT  WITH SPACE  LAST COLUMN
 
         let table = Table::new()
             .headers(&["", ""])
-            .alignments(&[fmt::Alignment::Right, fmt::Alignment::Right])
+            .alignments(&[Right, Right])
             .data(&[
                 vec!["éà", "abc"],      // 2 chars.
                 vec!["123", "abc"],     // 3 chars.
@@ -1189,7 +1131,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_accented_characters_count_as_one_aligned_center() {
         let table = Table::new()
             .headers(&["", ""])
-            .alignments(&[fmt::Alignment::Center, fmt::Alignment::Center])
+            .alignments(&[Center, Center])
             .data(&[
                 vec!["éàô", "abc"],     // 3 chars.
                 vec!["123", "abc"],     // 3 chars.
@@ -1221,11 +1163,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_ansi_colors_not_counted_in_column_width_align_left() {
         let table = Table::new()
             .headers(&["", "", ""])
-            .alignments(&[
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-                fmt::Alignment::Left,
-            ])
+            .alignments(&[Left, Left, Left])
             .data(&[
                 vec!["-", "\x1b[92mfoo\x1b[0m", "-"], // 3 chars.
                 vec!["-", "foo", "-"],                // 3 chars.
@@ -1251,11 +1189,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_ansi_colors_not_counted_in_column_width_align_right() {
         let table = Table::new()
             .headers(&["", "", ""])
-            .alignments(&[
-                fmt::Alignment::Right,
-                fmt::Alignment::Right,
-                fmt::Alignment::Right,
-            ])
+            .alignments(&[Right, Right, Right])
             .data(&[
                 vec!["-", "\x1b[92mfoo\x1b[0m", "-"], // 3 chars.
                 vec!["-", "foo", "-"],                // 3 chars.
@@ -1281,11 +1215,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_ansi_colors_not_counted_in_column_width_align_center() {
         let table = Table::new()
             .headers(&["", "", ""])
-            .alignments(&[
-                fmt::Alignment::Center,
-                fmt::Alignment::Center,
-                fmt::Alignment::Center,
-            ])
+            .alignments(&[Center, Center, Center])
             .data(&[
                 vec!["-", "\x1b[92mfoo\x1b[0m", "-"], // 3 chars.
                 vec!["-", "foo", "-"],                // 3 chars.
@@ -1311,11 +1241,7 @@ SHORT  WITH SPACE  LAST COLUMN
     fn table_ansi_colors_in_headers() {
         let table = Table::new()
             .headers(&["-", "\x1b[92mhi\x1b[0m", "-"]) // 2 chars.
-            .alignments(&[
-                fmt::Alignment::Center,
-                fmt::Alignment::Center,
-                fmt::Alignment::Center,
-            ])
+            .alignments(&[Center, Center, Center])
             .data(&[
                 vec!["-", "hi", "-"],     // 2 chars.
                 vec!["-", "barbaz", "-"], // 6 chars.
