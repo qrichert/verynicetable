@@ -1,10 +1,10 @@
 [package]
 name = "verynicetable"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2024"
 authors = ["Quentin Richert <noreply@richert.co>"]
 description = "Number one table."
-license = "MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/qrichert/verynicetable.git"
 readme = "README.md"
 keywords = ["tui", "table", "terminal", "console"]

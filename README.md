@@ -1,6 +1,6 @@
 # very nice table
 
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/license/mit)
+![Crates.io License](https://img.shields.io/crates/l/verynicetable)
 ![GitHub Tag](https://img.shields.io/github/v/tag/qrichert/verynicetable?sort=semver&filter=*.*.*&label=release)
 [![crates.io](https://img.shields.io/crates/d/verynicetable?logo=rust&logoColor=white&color=orange)](https://crates.io/crates/verynicetable)
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/qrichert/verynicetable/run-tests.yml?label=tests)](https://github.com/qrichert/verynicetable/actions)
