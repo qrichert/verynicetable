@@ -295,7 +295,7 @@ impl<'a> Table<'a> {
                 }
                 (_, State::NotInSequence) => {}
                 (_, State::InSequence) => continue,
-            };
+            }
             // As long as the output matches the input, this is a no-op.
             if output_matches_input {
                 continue;
