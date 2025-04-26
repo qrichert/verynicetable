@@ -1,4 +1,4 @@
-# very nice table
+# verynicetable
 
 ![Crates.io License](https://img.shields.io/crates/l/verynicetable)
 ![GitHub Tag](https://img.shields.io/github/v/tag/qrichert/verynicetable?sort=semver&filter=*.*.*&label=release)
@@ -8,6 +8,11 @@
 _Number one table._
 
 Very basic and lightweight table builder to print tabular data.
+
+Read the docs for [`Table`].
+
+[`Table`]:
+  https://docs.rs/verynicetable/latest/verynicetable/struct.Table.html
 
 ## Example
 
