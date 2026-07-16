@@ -156,7 +156,7 @@ impl<'a> Table<'a> {
         let table = self.make_table_blueprint();
 
         if table.data.is_empty() {
-            return writeln!(output, "{}", table.headers.join("  "));
+            return writeln!(output, "{}", table.headers.join(table.column_separator));
         }
 
         // Share buffer across rows to minimize allocations.
@@ -532,6 +532,17 @@ baz
 SHORT  WITH SPACE  LAST COLUMN
 "
         );
+    }
+
+    #[test]
+    fn table_without_data_with_custom_column_separator() {
+        let table = Table::new()
+            .headers(&["A", "B", "C"])
+            .column_separator("|")
+            .to_string();
+
+        println!("{table}");
+        assert_eq!(table, "A|B|C\n");
     }
 
     #[test]
