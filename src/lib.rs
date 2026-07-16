@@ -200,7 +200,7 @@ impl<'a> Table<'a> {
     /// Left-align string, ignoring ANSI color sequences.
     ///
     /// Without colors, it is equivalent to `{string:<width$}`.
-    fn align_left(string: &str, width: usize) -> Cow<str> {
+    fn align_left(string: &str, width: usize) -> Cow<'_, str> {
         let string_len_without_colors = Self::strip_ansi_colors(string).chars().count();
         let padding_len = width.saturating_sub(string_len_without_colors);
         if padding_len == 0 {
@@ -212,7 +212,7 @@ impl<'a> Table<'a> {
     /// Right-align string, ignoring ANSI color sequences.
     ///
     /// Without colors, it is equivalent to `{string:>width$}`.
-    fn align_right(string: &str, width: usize) -> Cow<str> {
+    fn align_right(string: &str, width: usize) -> Cow<'_, str> {
         let string_len_without_colors = Self::strip_ansi_colors(string).chars().count();
         let padding_len = width.saturating_sub(string_len_without_colors);
         if padding_len == 0 {
@@ -224,7 +224,7 @@ impl<'a> Table<'a> {
     /// Center-align string, ignoring ANSI color sequences.
     ///
     /// Without colors, it is equivalent to `{string:^width$}`.
-    fn align_center(string: &str, width: usize) -> Cow<str> {
+    fn align_center(string: &str, width: usize) -> Cow<'_, str> {
         let string_len_without_colors = Self::strip_ansi_colors(string).chars().count();
         let padding_len = width.saturating_sub(string_len_without_colors);
         if padding_len == 0 {
@@ -256,7 +256,7 @@ impl<'a> Table<'a> {
     /// may seem far-fetched, but in the large majority of cases there
     /// may be a lot of strings to process, but they most probably won't
     /// be colored. So we make sure to save the overhead.
-    fn strip_ansi_colors(string: &str) -> Cow<str> {
+    fn strip_ansi_colors(string: &str) -> Cow<'_, str> {
         enum State {
             NotInSequence,
             InSequence,
@@ -273,20 +273,20 @@ impl<'a> Table<'a> {
         while let Some((i, char)) = chars.next() {
             match (char, &state) {
                 ('\x1b', State::NotInSequence) => {
-                    if let Some((_, char)) = chars.peek() {
-                        if *char == '[' {
-                            state = State::InSequence;
+                    if let Some((_, char)) = chars.peek()
+                        && *char == '['
+                    {
+                        state = State::InSequence;
 
-                            // From now on, input and output differ.
-                            if output_matches_input {
-                                output_matches_input = false;
-                                // The shortest sequence is 4 bytes (`\x1b[0m`).
-                                out.reserve_exact(string.len() - 4);
-                                out = string.chars().take(i).collect();
-                            }
-
-                            continue;
+                        // From now on, input and output differ.
+                        if output_matches_input {
+                            output_matches_input = false;
+                            // The shortest sequence is 4 bytes (`\x1b[0m`).
+                            out.reserve_exact(string.len() - 4);
+                            out = string.chars().take(i).collect();
                         }
+
+                        continue;
                     }
                 }
                 ('m', State::InSequence) => {
@@ -310,7 +310,7 @@ impl<'a> Table<'a> {
         }
     }
 
-    fn make_table_blueprint(&self) -> TableBlueprint {
+    fn make_table_blueprint(&self) -> TableBlueprint<'_> {
         let nb_cols = self.determine_nb_columns();
 
         let headers = self.get_headers_or_default(nb_cols);
@@ -343,10 +343,10 @@ impl<'a> Table<'a> {
         if let Some(headers) = self.headers.as_ref() {
             return headers.len();
         }
-        if let Some(data) = self.data.as_ref() {
-            if !data.is_empty() {
-                return data[0].len();
-            }
+        if let Some(data) = self.data.as_ref()
+            && !data.is_empty()
+        {
+            return data[0].len();
         }
         panic!("headers and data cannot both be empty");
     }
