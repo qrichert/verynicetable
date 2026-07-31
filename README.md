@@ -11,7 +11,8 @@ Very basic and lightweight table builder to print tabular data.
 
 Read the docs for [`Table`].
 
-[`Table`]: https://docs.rs/verynicetable/latest/verynicetable/struct.Table.html
+[`Table`]:
+  https://docs.rs/verynicetable/latest/verynicetable/struct.Table.html
 
 ## Example
 
