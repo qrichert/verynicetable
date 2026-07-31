@@ -11,8 +11,7 @@ Very basic and lightweight table builder to print tabular data.
 
 Read the docs for [`Table`].
 
-[`Table`]:
-  https://docs.rs/verynicetable/latest/verynicetable/struct.Table.html
+[`Table`]: https://docs.rs/verynicetable/latest/verynicetable/struct.Table.html
 
 ## Example
 
@@ -52,3 +51,11 @@ Transmiss  94671  Quentin          *:51413
 ```
 
 That's about it.
+
+## Package
+
+The crate is available on [crates.io]. See the [documentation] for its
+API.
+
+[crates.io]: https://crates.io/crates/verynicetable
+[documentation]: https://docs.rs/verynicetable

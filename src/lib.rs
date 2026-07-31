@@ -1,4 +1,4 @@
-//! Number one table.
+//! Lightweight table formatter for aligned terminal and CLI output.
 //!
 //! Very basic and lightweight table builder to print tabular data.
 //!
